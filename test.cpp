@@ -16,7 +16,8 @@ int main(int argc, char **args)
 
     for (auto n : parse.arguments)
     {
-        cout << "Arg " << n.name << endl;
+        cout<<n.name<<endl;
+        cout << "-------------------" << n.name << "-------------------"<< endl;
     }
     // cout << "2 added" << endl;
     parse.parse(args, argc);

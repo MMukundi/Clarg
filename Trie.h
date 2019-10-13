@@ -13,25 +13,35 @@ r -first 1 -second 2 -third 3
 using namespace std;
 
 const int ALPHABET_SIZE = 26;
-const int TOTAL_SIZE = 11 + 2* ALPHABET_SIZE;
+const int TOTAL_SIZE = 11 + 2 * ALPHABET_SIZE;
+
+template <typename V, u_long i>
+bool nullArray(array<V,i> a){
+    bool allNull = true;
+    for(V ob:a){
+        allNull = allNull&&(ob==nullptr||ob==NULL);
+    }
+    return allNull;
+}
+
 
 template <typename T>
-    class TrieNode
+class TrieNode
+{
+public:
+    array<TrieNode<T> *, TOTAL_SIZE> children = new array<TrieNode<T> *, TOTAL_SIZE>();
+    T data;
+    bool assigned = false;
+    static TrieNode<T> *getNode()
     {
-    public:
-        array<TrieNode<T> *, TOTAL_SIZE> children = new array<TrieNode<T> *, TOTAL_SIZE>();
-        T data;
-        bool assigned = false;
-        static TrieNode<T> *getNode()
-        {
-            TrieNode<T> *t = (TrieNode<T> *)malloc(sizeof(TrieNode<T>));
-            t->children.fill(nullptr);
-            return t;
-        }
-        TrieNode()
-        {
-        }
-    };
+        TrieNode<T> *t = (TrieNode<T> *)malloc(sizeof(TrieNode<T>));
+        t->children.fill(nullptr);
+        return t;
+    }
+    TrieNode()
+    {
+    }
+};
 // trie node
 template <typename T>
 class Trie
@@ -57,7 +67,7 @@ public:
         default:
             if (isalpha(c))
             {
-                if(c>='A'&&c<='Z')
+                if (c >= 'A' && c <= 'Z')
                     return 11 + c - 'A';
                 else
                     return 37 + c - 'a';
@@ -89,7 +99,7 @@ public:
         case 10:
             return '_';
         default:
-            char c = (i>=11 && i<37)?'A' + (i - 11):'a' + (i-37);
+            char c = (i >= 11 && i < 37) ? 'A' + (i - 11) : 'a' + (i - 37);
             if (isalpha(c))
             {
                 return c;
@@ -115,7 +125,7 @@ public:
             int i;
             cout << "Building the iterator " << endl;
 
-            while (currentNode != nullptr)
+            while (true)
             {
                 cout << "CurrString: " << currString << endl;
 
@@ -132,6 +142,7 @@ public:
                 }
                 cout << "Index: " << i << endl;
                 currString += toChar(i);
+                if(currentNode->children[i]==nullptr)break;
                 stack.push_back({currentNode, i});
                 currentNode = currentNode->children[i];
             }
@@ -142,25 +153,57 @@ public:
         }
         void operator++()
         {
-            cout<<"Moving to next"<<endl;
-        top:
+            cout << "Moving to next from " << currString << endl;
             pair<TrieNode<T> *, int> &c = stack.back();
-            if (c.second+1 < TOTAL_SIZE)
+            //Get to next extisting cell
+            c.second++;
+            int i;
+            TrieNode<T> *curr;
+            if (currString.size() > 0)
+                currString.pop_back();
+            while (true)
             {
-                c.second++;
-            }
-            else
-            {
-                stack.pop_back();
-                goto top;
+                cout << "Checking " << currString << " starting with index " << c.second << endl;
+                while (c.second < TOTAL_SIZE && !c.first->children[c.second])
+                {
+
+                    c.second++;
+                }
+                cout << "Now at index " << c.second << endl;
+                if (c.second >= TOTAL_SIZE)
+                {
+                    cout << "Backing up";
+
+                    if (currString.size() > 0)
+                        currString.pop_back();
+                    stack.pop_back();
+                    if (stack.back().first == stack[0].first)
+                        cout << " to root";
+                    cout << endl;
+                    if (stack.empty())
+                        break;
+                    c = stack.back();
+                    if (c.first->children[c.second]->assigned)
+                        break;
+                    else c.second++;
+                }
+                else
+                {
+                    cout << "Index: " << c.second << endl;
+                    currString += (toChar(c.second));
+                    stack.push_back({c.first->children[c.second], 0});
+                    c = stack.back();
+                    cout<<"Empty?"<<nullArray(c.first->children)<<endl;
+                    if(nullArray(c.first->children))
+                        break;
+                }
             }
         }
         T get()
         {
             pair<TrieNode<T> *, int> &c = stack.back();
-            cout<<"Current char "<<toChar(i)<<endl;
             if (c.second < TOTAL_SIZE)
-                return c.first->children[c.second]->data;
+                return c.first->data;
             throw std::out_of_range("Can't increment an end trie iterator");
         }
         T operator*()
@@ -169,7 +212,7 @@ public:
         }
         bool operator!=(TrieIterator &t)
         {
-            
+
             if (this->stack.empty() && t.stack.empty())
             {
                 return false;
@@ -201,7 +244,7 @@ public:
     // If not present, inserts key into trie
     // If the key is prefix of trie node, just
     // marks leaf node
-    void insert(const char * key, T data)
+    void insert(const char *key, T data)
     {
         TrieNode<T> *currentNode = root;
         string keyString = string(key);
@@ -223,10 +266,10 @@ public:
 
     // Returns true if key presents in trie, else
     // false
-    T search(const char* key)
+    T search(const char *key)
     {
         TrieNode<T> *currentNode = root;
-                string keyString = string(key);
+        string keyString = string(key);
 
         cout << "KEY:" << keyString << endl;
         int n = keyString.length();
@@ -240,17 +283,19 @@ public:
                 currentNode = currentNode->children[index];
             }
         }
-        
-        if (currentNode != nullptr && currentNode->assigned){
-            cout << "Found value " << currentNode->data<<endl;;
-            return currentNode->data;    
+
+        if (currentNode != nullptr && currentNode->assigned)
+        {
+            cout << "Found value " << currentNode->data << endl;
+            ;
+            return currentNode->data;
         }
         throw std::invalid_argument("Key \"" + keyString + "\" is not present in the trie");
     }
-    bool has(const char* key)
+    bool has(const char *key)
     {
         TrieNode<T> *currentNode = root;
-                string keyString = string(key);
+        string keyString = string(key);
 
         for (int i = 0, n = keyString.length(); i < n; i++)
         {
