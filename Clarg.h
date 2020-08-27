@@ -12,13 +12,25 @@ class Arg{
   public:
     const char *name;
     int argCount = 0;
+    enum ValueType{
+        Strings,
+        String,
+        Flag,
+        None
+    } type = None;
     bool set = false;
     union Val {
         char **strings;
         bool flag;
     } val;
     Arg(const char* n);  
-    Arg(const char *n, int q);
+    Arg(const char *n, int count);
+
+    void initFlag(const char* n);
+
+    char* getArg(int i=0);
+    char** getArgs();
+    bool getFlag();
     bool operator==(Arg *a);
     
 };

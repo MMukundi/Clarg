@@ -13,7 +13,7 @@ r -first 1 -second 2 -third 3
 using namespace std;
 
 const int ALPHABET_SIZE = 26;
-const int TOTAL_SIZE = 11 + 2 * ALPHABET_SIZE;
+const int TOTAL_SIZE = 10 + 2 + 2 * ALPHABET_SIZE;
 
 template <typename V, u_long i>
 bool nullArray(array<V, i> a)
@@ -104,7 +104,7 @@ public:
         case 3:
         case 4:
         case 5:
-        case 6:
+        case 6: 
         case 7:
         case 8:
         case 9:
@@ -217,14 +217,14 @@ public:
                 }
             }while (!currentNode->node->assigned);
         }
-        T get()
+        T& get()
         {
             IterInfo c = stack[lastStackIndex];
             if (lastStackIndex>-1&&c.node->assigned)
                 return c.node->data;
             throw IncrementEndException();
         }
-        T operator*()
+        T& operator*()
         {
             return get();
         }
@@ -284,7 +284,7 @@ public:
 
     // Returns true if key presents in trie, else
     // false
-    T search(const char *key)
+    T& search(const char *key)
     {
         TrieNode<T> *currentNode = root;
         string keyString = string(key);
@@ -303,7 +303,6 @@ public:
 
         if (currentNode != nullptr && currentNode->assigned)
         {
-            ;
             return currentNode->data;
         }
         throw std::invalid_argument("Key \"" + keyString + "\" is not present in the trie");
@@ -325,7 +324,7 @@ public:
             return (currentNode->assigned);
         return false;
     }
-    T operator[](const char *key)
+    T& operator[](const char *key)
     {
         return search(key);
     }
