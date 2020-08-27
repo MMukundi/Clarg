@@ -16,14 +16,27 @@ const int ALPHABET_SIZE = 26;
 const int TOTAL_SIZE = 11 + 2 * ALPHABET_SIZE;
 
 template <typename V, u_long i>
-bool nullArray(array<V,i> a){
-    bool allNull = true;
-    for(V ob:a){
-        allNull = allNull&&(ob==nullptr||ob==NULL);
+bool nullArray(array<V, i> a)
+{
+    for (V ob : a)
+    {
+        if (!(ob == nullptr || ob == NULL))
+            return false;
     }
-    return allNull;
+    return true;
 }
-
+struct IndexException : public std::exception
+{
+    int index;
+    IndexException(int i)
+    {
+        index = i;
+    }
+    const char *what() const throw()
+    {
+        return ("Cannot access index " + std::to_string(index)).c_str();
+    }
+};
 
 template <typename T>
 class TrieNode
@@ -109,102 +122,107 @@ public:
             throw runtime_error("Invalid Char");
         }
     }
+    struct IterInfo
+    {
+        TrieNode<T> *node;
+        int searchIndex;
+        IterInfo(TrieNode<T> *n, int i) : node(n), searchIndex(i){};
+        IterInfo(){};
+    };
+    struct IncrementEndException : public std::exception
+    {
+        const char *what() const throw()
+        {
+            return "Can't increment an end trie iterator";
+        }
+    };
     class TrieIterator
     {
-        //Parent, pos
 
-        //END = (stack[0] == {root, ALPH_SIZE})
-
-        //To check
     public:
-        vector<pair<TrieNode<T> *, int>> stack = *(new vector<pair<TrieNode<T> *, int>>());
+        // vector<IterInfo> stack = *(new vector<IterInfo>());
+        IterInfo *stack;
+        int lastStackIndex = -1;
         string currString = ""s;
+        TrieNode<T> *trieRoot;
         TrieIterator(Trie<T> t)
         {
             TrieNode<T> *currentNode = t.root;
-            int i;
-            cout << "Building the iterator " << endl;
-
-            while (true)
-            {
-                cout << "CurrString: " << currString << endl;
-
-                i = 0;
-                while (i < TOTAL_SIZE && !currentNode->children[i])
-                {
-
-                    i++;
-                }
-                if (i >= TOTAL_SIZE)
-                {
-                    cout << "An empty row!" << endl;
-                    break;
-                }
-                cout << "Index: " << i << endl;
-                currString += toChar(i);
-                if(currentNode->children[i]==nullptr)break;
-                stack.push_back({currentNode, i});
-                currentNode = currentNode->children[i];
-            }
-            cout << "Total size: " << stack.size() << endl;
+            stack = new IterInfo[t.height + 1];
+            trieRoot = t.root;
+            stack[++lastStackIndex] = {trieRoot, -1};
+            // stack.push_back({trieRoot, -1});
+            next();
         }
         TrieIterator()
         {
+            stack = new IterInfo[0];
         }
-        void operator++()
+        void operator++() { next(); }
+        void next()
         {
-            cout << "Moving to next from " << currString << endl;
-            pair<TrieNode<T> *, int> &c = stack.back();
-            //Get to next extisting cell
-            c.second++;
-            int i;
-            TrieNode<T> *curr;
-            if (currString.size() > 0)
-                currString.pop_back();
-            while (true)
+            //The iterator "cares about" parents; only potential or confirmed parents are stored in the stack
+            if (lastStackIndex < 0)
             {
-                cout << "Checking " << currString << " starting with index " << c.second << endl;
-                while (c.second < TOTAL_SIZE && !c.first->children[c.second])
-                {
-
-                    c.second++;
-                }
-                cout << "Now at index " << c.second << endl;
-                if (c.second >= TOTAL_SIZE)
-                {
-                    cout << "Backing up";
-
-                    if (currString.size() > 0)
-                        currString.pop_back();
-                    stack.pop_back();
-                    if (stack.back().first == stack[0].first)
-                        cout << " to root";
-                    cout << endl;
-                    if (stack.empty())
-                        break;
-                    c = stack.back();
-                    if (c.first->children[c.second]->assigned)
-                        break;
-                    else c.second++;
-                }
-                else
-                {
-                    cout << "Index: " << c.second << endl;
-                    currString += (toChar(c.second));
-                    stack.push_back({c.first->children[c.second], 0});
-                    c = stack.back();
-                    cout<<"Empty?"<<nullArray(c.first->children)<<endl;
-                    if(nullArray(c.first->children))
-                        break;
-                }
+                throw IncrementEndException();
             }
+
+            // currString.pop_back();
+            // stack.pop_back();
+
+            //Retrieve the active parent
+            IterInfo* currentNode = &stack[lastStackIndex];
+
+            //Begin checking the parent's next child
+
+            // TrieNode<T> *curr;
+            do
+            {
+                // cout<<"Checking node '"<<currString<<"' at index "<<currentNode->searchIndex<<std::endl;
+                for (currentNode->searchIndex++; currentNode->searchIndex < TOTAL_SIZE; currentNode->searchIndex++)
+                {
+                    if (currentNode->node->children[currentNode->searchIndex])
+                        break;
+                }
+                // cout<<"Index is now "<<currentNode->searchIndex<<std::endl;
+
+                if (currentNode->searchIndex < TOTAL_SIZE)
+                {
+                    // cout<<"The last sIndex for '"<<currString<<"' was "<<currentNode->searchIndex<<" @"<<currentNode<<std::endl;
+                    currString += (toChar(currentNode->searchIndex));
+                    stack[++lastStackIndex] = IterInfo(currentNode->node->children[currentNode->searchIndex], -1);
+                    currentNode = &stack[lastStackIndex];
+                    if (currentNode->node->assigned)
+                        return;
+                    continue;
+                }
+
+                while (currentNode->searchIndex >= TOTAL_SIZE)
+                {
+
+                    currString.pop_back();
+                    // cout << "Popping, index was "<<lastStackIndex;
+                    lastStackIndex--;
+                    // stack.pop_back();
+                    if (lastStackIndex < 0)
+                        return;
+                    // cout << " and is now "<<lastStackIndex<<std::endl;
+
+                    currentNode = &stack[lastStackIndex];
+                    // cout<<"Current node is now @"<<currentNode<<std::endl;
+                    // cout<<"Current node index is now @"<<currentNode->searchIndex<<std::endl;
+
+                    // currentNode->searchIndex++;
+                    // cout<<"changing "<<currentNode->searchIndex<<std::endl;
+                }
+            }while (!currentNode->node->assigned);
         }
         T get()
         {
-            pair<TrieNode<T> *, int> &c = stack.back();
-            if (c.second < TOTAL_SIZE)
-                return c.first->data;
-            throw std::out_of_range("Can't increment an end trie iterator");
+            IterInfo c = stack[lastStackIndex];
+            if (lastStackIndex>-1&&c.node->assigned)
+                return c.node->data;
+            throw IncrementEndException();
         }
         T operator*()
         {
@@ -213,18 +231,18 @@ public:
         bool operator!=(TrieIterator &t)
         {
 
-            if (this->stack.empty() && t.stack.empty())
+            if (this->lastStackIndex< 0 && t.lastStackIndex < 0)
             {
                 return false;
             }
-            if (this->stack.size() != t.stack.size())
+            if (this->lastStackIndex != t.lastStackIndex)
             {
                 return true;
             }
-            pair<TrieNode<T> *, int> a = this->stack.back();
-            pair<TrieNode<T> *, int> b = t.stack.back();
-            bool nodes = a.first == b.first;
-            bool ints = a.second == b.second;
+            IterInfo a = this->stack[this->lastStackIndex];
+            IterInfo b = t.stack[t.lastStackIndex];
+            bool nodes = a.node == b.node;
+            bool ints = a.searchIndex == b.searchIndex;
             return !(nodes && ints);
         }
         static TrieIterator END()
@@ -233,12 +251,12 @@ public:
         }
     };
     TrieNode<T> *root;
+    int height;
 
     // Returns new trie node (initialized to nullptrs)
     Trie()
     {
         root = TrieNode<T>::getNode();
-        // cout << "Root " << currentNode->data << endl;
     }
 
     // If not present, inserts key into trie
@@ -248,20 +266,20 @@ public:
     {
         TrieNode<T> *currentNode = root;
         string keyString = string(key);
-
-        for (int i = 0; i < keyString.length(); i++)
+        int l = keyString.length();
+        for (int i = 0; i < l; i++)
         {
             int index = toIndex(keyString[i]);
             if (!currentNode->children[index])
                 currentNode->children[index] = TrieNode<T>::getNode();
-
             currentNode = currentNode->children[index];
         }
 
         // mark last node as leaf
         currentNode->data = data;
         currentNode->assigned = true;
-        cout << "Node: " << currentNode << " Key: " << key << " Data: " << currentNode->data << endl;
+        if (height < l)
+            height = l;
     }
 
     // Returns true if key presents in trie, else
@@ -271,7 +289,6 @@ public:
         TrieNode<T> *currentNode = root;
         string keyString = string(key);
 
-        cout << "KEY:" << keyString << endl;
         int n = keyString.length();
         for (int i = 0; i < n; i++)
         {
@@ -286,7 +303,6 @@ public:
 
         if (currentNode != nullptr && currentNode->assigned)
         {
-            cout << "Found value " << currentNode->data << endl;
             ;
             return currentNode->data;
         }
@@ -315,7 +331,9 @@ public:
     }
     TrieIterator begin()
     {
-        return TrieIterator(*this);
+        // return TrieIterator(*this);
+        TrieIterator t = TrieIterator(*this);
+        return t;
     }
     Trie<T>::TrieIterator end()
     {

@@ -12,11 +12,10 @@ int main(int argc, char **args)
     parse.addArg("second", 1);
     // cout << "1 added" << endl;
     parse.addArg("third", 1);
-    cout << "Testing args" << endl;
 
     for (auto n : parse.arguments)
     {
-        cout<<n.name<<endl;
+        // cout<<n.name<<endl;
         cout << "-------------------" << n.name << "-------------------"<< endl;
     }
     // cout << "2 added" << endl;
